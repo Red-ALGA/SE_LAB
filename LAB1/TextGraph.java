@@ -141,6 +141,70 @@ public class TextGraph{ //public类
             return new PathResult(path, distance);
         }
         
+        //计算某一结点到其他所有结点的最短路径
+        public Map<String, PathResult> calcShortestPathsFrom(String source) {
+            source = source.toLowerCase();
+            
+            if (!containsNode(source)) {
+                return null;
+            }
+            
+            // Dijkstra算法实现
+            PriorityQueue<Node> queue = new PriorityQueue<>(Comparator.comparingInt(n -> n.getDistance()));
+            Node start = getNode(source);
+            start.setDistance(0);
+            queue.add(start);
+            
+            Map<String, String> previous = new HashMap<>();
+            Set<String> visited = new HashSet<>();
+            
+            while (!queue.isEmpty()) {
+                Node current = queue.poll();
+                visited.add(current.getName());
+                
+                for (Edge edge : current.getEdges()) {
+                    Node neighbor = edge.getDestination();
+                    if (visited.contains(neighbor.getName())) continue;
+                    
+                    int newDist = current.getDistance() + edge.getWeight();
+                    if (newDist < neighbor.getDistance()) {
+                        neighbor.setDistance(newDist);
+                        previous.put(neighbor.getName(), current.getName());
+                        queue.add(neighbor);
+                    }
+                }
+            }
+            
+            // 构建所有路径结果
+            Map<String, PathResult> allPaths = new HashMap<>();
+            for (String nodeName : nodes.keySet()) {
+                if (nodeName.equals(source)) continue;
+                
+                List<String> path = new ArrayList<>();
+                String current = nodeName;
+                while (current != null && !current.equals(source)) {
+                    path.add(current);
+                    current = previous.get(current);
+                }
+                
+                if (current != null) { // 可达
+                    path.add(source);
+                    Collections.reverse(path);
+                    allPaths.put(nodeName, new PathResult(path, getNode(nodeName).getDistance()));
+                } else { // 不可达
+                    allPaths.put(nodeName, new PathResult(null, Integer.MAX_VALUE));
+                }
+            }
+            
+            // 重置所有节点的距离
+            for (Node node : getAllNodes()) {
+                node.setDistance(Integer.MAX_VALUE);
+            }
+            
+            return allPaths;
+        }
+        
+
         //计算PageRank,输入参数为阻尼因子和迭代参数
         public Map<String, Double> calcPageRank(double dampingFactor, int iterations) {
             Map<String, Double> pageRank = new HashMap<>();
@@ -186,7 +250,7 @@ public class TextGraph{ //public类
             
             return pageRank;
         }
-        
+
         //随机游走
         public List<String> randomWalk() {
             List<String> walk = new ArrayList<>();
@@ -378,18 +442,19 @@ public class TextGraph{ //public类
         Scanner scanner = new Scanner(System.in);
         Graph graph = null;
         
-        System.out.println("文本图分析与处理程序");
-        System.out.println("1. 从文件构建图");
-        System.out.println("2. 显示图结构");
-        System.out.println("3. 查询桥接词");
-        System.out.println("4. 生成新文本");
-        System.out.println("5. 计算最短路径");
-        System.out.println("6. 计算PageRank");
-        System.out.println("7. 随机游走");
-        System.out.println("8. 导出图形");
-        System.out.println("0. 退出");
-        
         while (true) {
+            System.out.println("************************");
+            System.out.println("文本图分析与处理程序");
+            System.out.println("1. 从文件构建图");
+            System.out.println("2. 显示图结构");
+            System.out.println("3. 查询桥接词");
+            System.out.println("4. 生成新文本");
+            System.out.println("5. 计算最短路径");
+            System.out.println("6. 计算PageRank");
+            System.out.println("7. 随机游走");
+            System.out.println("8. 导出图形");
+            System.out.println("0. 退出");
+            System.out.println("************************");
             System.out.print("\n请选择功能(0-8): ");
             int choice;
             try {
@@ -457,14 +522,42 @@ public class TextGraph{ //public类
                     }
                     System.out.print("请输入起始单词: ");
                     String startWord = scanner.nextLine();
-                    System.out.print("请输入目标单词: ");
+
+                    System.out.print("请输入目标单词(留空将计算到所有其他节点的最短路径): ");
                     String endWord = scanner.nextLine();
-                    PathResult pathResult = graph.calcShortestPath(startWord, endWord);
-                    if (pathResult == null || pathResult.getPath() == null) {
-                        System.out.println("单词不存在或路径不可达!");
-                    } else {
-                        System.out.println("最短路径: " + String.join(" -> ", pathResult.getPath()));
-                        System.out.println("路径长度: " + pathResult.getDistance());
+                        
+                    if (endWord.isEmpty()) {
+                        // 计算单个起点到所有其他节点的最短路径
+                        Map<String, PathResult> allPaths = graph.calcShortestPathsFrom(startWord);
+                        if (allPaths == null) {
+                            System.out.println("起始单词不存在!");
+                            break;
+                        }
+                        
+                        System.out.println("从 '" + startWord + "' 到其他所有单词的最短路径:");
+                        allPaths.entrySet().stream()
+                            .sorted(Comparator.comparingInt(e -> e.getValue().getDistance()))
+                            .forEach(entry -> {
+                                PathResult pathResult = entry.getValue();
+                                System.out.printf("到 %s: ", entry.getKey());
+                                if (pathResult.getPath() == null) {
+                                    System.out.println("不可达");
+                                } else {
+                                    System.out.printf("路径: %s, 距离: %d%n",
+                                        String.join(" -> ", pathResult.getPath()),
+                                        pathResult.getDistance());
+                                }
+                            });
+                    }
+                    else {
+                        // 计算单个起点到单个终点的最短路径
+                        PathResult pathResult = graph.calcShortestPath(startWord, endWord);
+                        if (pathResult == null || pathResult.getPath() == null) {
+                            System.out.println("单词不存在或路径不可达!");
+                        } else {
+                            System.out.println("最短路径: " + String.join(" -> ", pathResult.getPath()));
+                            System.out.println("路径长度: " + pathResult.getDistance());
+                        }
                     }
                     break;
                     
@@ -581,7 +674,7 @@ public class TextGraph{ //public类
             }
             
             List<String> edgeStrings = edges.stream()
-                .map(e -> e.getDestination().getName() + "(" + e.getWeight() + ")")
+                .map(e -> e.getDestination().getName() + "(" + e.getWeight() + ")") //括号中显示边的权重值
                 .collect(Collectors.toList());
             System.out.println(String.join(", ", edgeStrings));
         }
