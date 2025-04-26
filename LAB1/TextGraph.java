@@ -251,6 +251,124 @@ public class TextGraph{ //public类
             return pageRank;
         }
 
+        // 新增方法：计算单词在文档中的频率
+        private static Map<String, Integer> calculateTermFrequencies(String text) {
+            Map<String, Integer> frequencies = new HashMap<>();
+            String[] words = text.replaceAll("[^a-zA-Z\\s]", " ")
+                                .toLowerCase()
+                                .split("\\s+");
+            
+            for (String word : words) {
+                if (word.isEmpty()) continue;
+                frequencies.put(word, frequencies.getOrDefault(word, 0) + 1);
+            }
+            
+            return frequencies;
+        }
+
+        // 新增方法：计算逆文档频率（这里简化处理，使用单个文档）
+        private static Map<String, Double> calculateIDF(String text) {
+            Map<String, Double> idf = new HashMap<>();
+            String[] words = text.replaceAll("[^a-zA-Z\\s]", " ")
+                                .toLowerCase()
+                                .split("\\s+");
+            
+            int totalWords = words.length;
+            Map<String, Integer> docFrequency = new HashMap<>();
+            
+            for (String word : words) {
+                if (word.isEmpty()) continue;
+                docFrequency.put(word, docFrequency.getOrDefault(word, 0) + 1);
+            }
+            
+            for (Map.Entry<String, Integer> entry : docFrequency.entrySet()) {
+                idf.put(entry.getKey(), Math.log((double)totalWords / entry.getValue()));
+            }
+            
+            return idf;
+        }
+
+        // 新增方法：计算TF-IDF值
+        private static Map<String, Double> calculateTFIDF(String text) {
+            Map<String, Integer> tf = calculateTermFrequencies(text);
+            Map<String, Double> idf = calculateIDF(text);
+            Map<String, Double> tfidf = new HashMap<>();
+            
+            for (String word : tf.keySet()) {
+                tfidf.put(word, tf.get(word) * idf.getOrDefault(word, 0.0));
+            }
+            
+            // 归一化
+            double max = tfidf.values().stream().max(Double::compare).orElse(1.0);
+            for (String word : tfidf.keySet()) {
+                tfidf.put(word, tfidf.get(word) / max);
+            }
+            
+            return tfidf;
+        }
+
+        // 新增方法：改进的PageRank计算
+        public Map<String, Double> calcImprovedPageRank(Graph graph, double dampingFactor, int iterations, String text) {
+            Map<String, Double> tfidf = calculateTFIDF(text);
+            Map<String, Double> pageRank = new HashMap<>();
+            double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
+            
+            // 使用TF-IDF作为初始值
+            for (String node : graph.nodes.keySet()) {
+                double initialValue = tfidf.getOrDefault(node, 0.0);
+                // 平滑处理，避免初始值为0
+                pageRank.put(node, initialValue + 0.0001);
+            }
+            
+            // 归一化初始值
+            double sum = pageRank.values().stream().mapToDouble(Double::doubleValue).sum();
+            for (String node : pageRank.keySet()) {
+                pageRank.put(node, pageRank.get(node) / sum);
+            }
+            
+            // 迭代计算
+            for (int i = 0; i < iterations; i++) {
+                Map<String, Double> newPageRank = new HashMap<>();
+                double danglingSum = 0.0;
+                
+                // 计算悬挂节点的贡献
+                for (Node node : graph.getAllNodes()) {
+                    if (node.getEdges().isEmpty()) {
+                        danglingSum += pageRank.get(node.getName());
+                    }
+                }
+                
+                for (Node node : graph.getAllNodes()) {
+                    double sumPR = 0.0;
+                    
+                    // 计算来自其他节点的贡献
+                    for (Node incoming : graph.getAllNodes()) {
+                        if (incoming.hasEdgeTo(node)) {
+                            sumPR += pageRank.get(incoming.getName()) / incoming.getOutDegree();
+                        }
+                    }
+                    
+                    // 添加悬挂节点的均匀分布贡献
+                    sumPR += danglingSum / graph.nodes.size();
+                    
+                    // 应用阻尼因子和TF-IDF权重
+                    double newValue = (1 - dampingFactor) * tfidf.getOrDefault(node.getName(), 1.0/graph.nodes.size()) 
+                                + dampingFactor * sumPR;
+                    newPageRank.put(node.getName(), newValue);
+                }
+                
+                // 归一化
+                double newSum = newPageRank.values().stream().mapToDouble(Double::doubleValue).sum();
+                for (String node : newPageRank.keySet()) {
+                    newPageRank.put(node, newPageRank.get(node) / newSum);
+                }
+                
+                pageRank = newPageRank;
+            }
+            
+            return pageRank;
+        }
+
         //随机游走
         public List<String> randomWalk() {
             List<String> walk = new ArrayList<>();
@@ -453,9 +571,11 @@ public class TextGraph{ //public类
             System.out.println("6. 计算PageRank");
             System.out.println("7. 随机游走");
             System.out.println("8. 导出图形");
+            System.out.println("9. 计算改进的PageRank");
             System.out.println("0. 退出");
             System.out.println("************************");
-            System.out.print("\n请选择功能(0-8): ");
+            System.out.print("\n请选择功能(0-9): ");
+            
             int choice;
             try {
                 choice = scanner.nextInt();
@@ -622,7 +742,41 @@ public class TextGraph{ //public类
                     }
                     graph.exportGraph(format, outputFile + "." + format);
                     break;
-                    
+
+                case 9:
+                    if (graph == null) {
+                        System.out.println("请先构建图!");
+                        break;
+                    }
+                    System.out.print("请输入原始文本文件路径(用于TF-IDF计算): ");
+                    String textFilePath = scanner.nextLine();
+                    try {
+                        String textContent = new String(Files.readAllBytes(Paths.get(textFilePath)));
+                        System.out.print("请输入要查询的单词(留空显示全部): ");
+                        String wordForImprovedPR = scanner.nextLine();
+                        
+                        // 使用改进的PageRank计算
+                        Map<String, Double> improvedPR = graph.calcImprovedPageRank(graph, 0.85, 50, textContent);
+                        
+                        if (wordForImprovedPR.isEmpty()) {
+                            System.out.println("所有单词的改进PageRank值(TF-IDF加权):");
+                            improvedPR.entrySet().stream()
+                                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                                .forEach(e -> System.out.printf("%s: %.4f%n", e.getKey(), e.getValue()));
+                        } else {
+                            wordForImprovedPR = wordForImprovedPR.toLowerCase();
+                            if (improvedPR.containsKey(wordForImprovedPR)) {
+                                System.out.printf("%s的改进PageRank值: %.4f%n", 
+                                    wordForImprovedPR, improvedPR.get(wordForImprovedPR));
+                            } else {
+                                System.out.println("单词不存在于图中!");
+                            }
+                        }
+                    } catch (IOException e) {
+                        System.out.println("读取文件错误: " + e.getMessage());
+                    }
+                    break;
+
                 default:
                     System.out.println("无效选择，请重新输入!");
             }
