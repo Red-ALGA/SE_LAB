@@ -8,68 +8,68 @@ import java.nio.file.Paths;
  * 从文本文件构建有向图，实现桥接词查询、新文本生成、最短路径计算、PageRank和随机游走
  */
 public class TextGraph{ //public类
-    
+
     //有向图
     static class Graph {
         private Map<String, Node> nodes;    //有向图节点集合
         private boolean directed;           //是否为有向图标记      /***此标记？****/
-        
+
         //构建有向图方法
-        public Graph(boolean directed) {    
+        public Graph(boolean directed) {
             this.directed = directed;
             this.nodes = new HashMap<>();
         }
-        
+
         //添加节点
         public void addNode(String name) {
             nodes.putIfAbsent(name.toLowerCase(), new Node(name.toLowerCase()));
         }
-        
+
         //添加边
         public void addEdge(String source, String destination, int weight) {
             String src = source.toLowerCase();
             String dest = destination.toLowerCase();
-            
+
             addNode(src);   //先添加两个结点
             addNode(dest);
-            
+
             Node srcNode = nodes.get(src);
             Node destNode = nodes.get(dest);
-            
+
             //更新边权重
             srcNode.addEdge(destNode, weight);  //添加边和权重
             if (!directed) {    //如果非有向图则添加对称边
                 destNode.addEdge(srcNode, weight);
             }
         }
-        
+
         //获取节点
         public Node getNode(String name) {
             return nodes.get(name.toLowerCase());
         }
-        
+
         //检查是否包含节点
         public boolean containsNode(String name) {
             return nodes.containsKey(name.toLowerCase());
         }
-        
+
         //获取所有节点
         public Collection<Node> getAllNodes() {
             return nodes.values();
         }
-        
+
         //获取桥接词
         public List<String> getBridgeWords(String word1, String word2) {
             word1 = word1.toLowerCase();
             word2 = word2.toLowerCase();
-            
+
             if (!containsNode(word1) || !containsNode(word2)) {
                 return null;
             }
-            
+
             Node node1 = getNode(word1);
             Node node2 = getNode(word2);
-            
+
             //获取word1的邻居和word2的前驱的交集
             Set<String> neighbors = node1.getNeighbors();
             Set<String> predecessors = new HashSet<>();
@@ -78,37 +78,37 @@ public class TextGraph{ //public类
                     predecessors.add(node.getName());
                 }
             }
-            
+
             neighbors.retainAll(predecessors);
             return new ArrayList<>(neighbors);
         }
-        
+
         //计算最短路径
         public PathResult calcShortestPath(String source, String destination) {
             source = source.toLowerCase();
             destination = destination.toLowerCase();
-            
+
             if (!containsNode(source) || !containsNode(destination)) {
                 return null;
             }
-            
+
             //Dijkstra算法实现
             PriorityQueue<Node> queue = new PriorityQueue<>(Comparator.comparingInt(n -> n.getDistance()));
             Node start = getNode(source);
             start.setDistance(0);
             queue.add(start);
-            
+
             Map<String, String> previous = new HashMap<>();
             Set<String> visited = new HashSet<>();
-            
+
             while (!queue.isEmpty()) {
                 Node current = queue.poll();
                 visited.add(current.getName());
-                
+
                 for (Edge edge : current.getEdges()) {
                     Node neighbor = edge.getDestination();
                     if (visited.contains(neighbor.getName())) continue;
-                    
+
                     int newDist = current.getDistance() + edge.getWeight();
                     if (newDist < neighbor.getDistance()) {
                         neighbor.setDistance(newDist);
@@ -117,7 +117,7 @@ public class TextGraph{ //public类
                     }
                 }
             }
-            
+
             //构建路径
             List<String> path = new ArrayList<>();
             String current = destination;
@@ -130,42 +130,42 @@ public class TextGraph{ //public类
             }
             path.add(source);
             Collections.reverse(path);
-            
+
             int distance = getNode(destination).getDistance();
-            
+
             //重置所有节点的距离
             for (Node node : getAllNodes()) {
                 node.setDistance(Integer.MAX_VALUE);
             }
-            
+
             return new PathResult(path, distance);
         }
-        
+
         //计算某一结点到其他所有结点的最短路径
         public Map<String, PathResult> calcShortestPathsFrom(String source) {
             source = source.toLowerCase();
-            
+
             if (!containsNode(source)) {
                 return null;
             }
-            
+
             // Dijkstra算法实现
             PriorityQueue<Node> queue = new PriorityQueue<>(Comparator.comparingInt(n -> n.getDistance()));
             Node start = getNode(source);
             start.setDistance(0);
             queue.add(start);
-            
+
             Map<String, String> previous = new HashMap<>();
             Set<String> visited = new HashSet<>();
-            
+
             while (!queue.isEmpty()) {
                 Node current = queue.poll();
                 visited.add(current.getName());
-                
+
                 for (Edge edge : current.getEdges()) {
                     Node neighbor = edge.getDestination();
                     if (visited.contains(neighbor.getName())) continue;
-                    
+
                     int newDist = current.getDistance() + edge.getWeight();
                     if (newDist < neighbor.getDistance()) {
                         neighbor.setDistance(newDist);
@@ -174,19 +174,19 @@ public class TextGraph{ //public类
                     }
                 }
             }
-            
+
             // 构建所有路径结果
             Map<String, PathResult> allPaths = new HashMap<>();
             for (String nodeName : nodes.keySet()) {
                 if (nodeName.equals(source)) continue;
-                
+
                 List<String> path = new ArrayList<>();
                 String current = nodeName;
                 while (current != null && !current.equals(source)) {
                     path.add(current);
                     current = previous.get(current);
                 }
-                
+
                 if (current != null) { // 可达
                     path.add(source);
                     Collections.reverse(path);
@@ -195,59 +195,59 @@ public class TextGraph{ //public类
                     allPaths.put(nodeName, new PathResult(null, Integer.MAX_VALUE));
                 }
             }
-            
+
             // 重置所有节点的距离
             for (Node node : getAllNodes()) {
                 node.setDistance(Integer.MAX_VALUE);
             }
-            
+
             return allPaths;
         }
-        
+
 
         //计算PageRank,输入参数为阻尼因子和迭代参数
         public Map<String, Double> calcPageRank(double dampingFactor, int iterations) {
             Map<String, Double> pageRank = new HashMap<>();
             double initialValue = 1.0 / nodes.size();
-            
+
             //初始化
             for (String node : nodes.keySet()) {
                 pageRank.put(node, initialValue);
             }
-            
+
             //迭代计算
             for (int i = 0; i < iterations; i++) {
                 Map<String, Double> newPageRank = new HashMap<>();
                 double danglingSum = 0.0;
-                
+
                 //计算悬挂节点的贡献
                 for (Node node : getAllNodes()) {
                     if (node.getEdges().isEmpty()) {
                         danglingSum += pageRank.get(node.getName());
                     }
                 }
-                
+
                 for (Node node : getAllNodes()) {
                     double sum = 0.0;
-                    
+
                     //计算来自其他节点的贡献
                     for (Node incoming : getAllNodes()) {
                         if (incoming.hasEdgeTo(node)) {
                             sum += pageRank.get(incoming.getName()) / incoming.getOutDegree();
                         }
                     }
-                    
+
                     //添加悬挂节点的均匀分布贡献
                     sum += danglingSum / nodes.size();
-                    
+
                     //应用阻尼因子
-                    newPageRank.put(node.getName(), 
-                        (1 - dampingFactor) / nodes.size() + dampingFactor * sum);
+                    newPageRank.put(node.getName(),
+                            (1 - dampingFactor) / nodes.size() + dampingFactor * sum);
                 }
-                
+
                 pageRank = newPageRank;
             }
-            
+
             return pageRank;
         }
 
@@ -255,14 +255,14 @@ public class TextGraph{ //public类
         private static Map<String, Integer> calculateTermFrequencies(String text) {
             Map<String, Integer> frequencies = new HashMap<>();
             String[] words = text.replaceAll("[^a-zA-Z\\s]", " ")
-                                .toLowerCase()
-                                .split("\\s+");
-            
+                    .toLowerCase()
+                    .split("\\s+");
+
             for (String word : words) {
                 if (word.isEmpty()) continue;
                 frequencies.put(word, frequencies.getOrDefault(word, 0) + 1);
             }
-            
+
             return frequencies;
         }
 
@@ -270,21 +270,21 @@ public class TextGraph{ //public类
         private static Map<String, Double> calculateIDF(String text) {
             Map<String, Double> idf = new HashMap<>();
             String[] words = text.replaceAll("[^a-zA-Z\\s]", " ")
-                                .toLowerCase()
-                                .split("\\s+");
-            
+                    .toLowerCase()
+                    .split("\\s+");
+
             int totalWords = words.length;
             Map<String, Integer> docFrequency = new HashMap<>();
-            
+
             for (String word : words) {
                 if (word.isEmpty()) continue;
                 docFrequency.put(word, docFrequency.getOrDefault(word, 0) + 1);
             }
-            
+
             for (Map.Entry<String, Integer> entry : docFrequency.entrySet()) {
                 idf.put(entry.getKey(), Math.log((double)totalWords / entry.getValue()));
             }
-            
+
             return idf;
         }
 
@@ -293,17 +293,17 @@ public class TextGraph{ //public类
             Map<String, Integer> tf = calculateTermFrequencies(text);
             Map<String, Double> idf = calculateIDF(text);
             Map<String, Double> tfidf = new HashMap<>();
-            
+
             for (String word : tf.keySet()) {
                 tfidf.put(word, tf.get(word) * idf.getOrDefault(word, 0.0));
             }
-            
+
             // 归一化
             double max = tfidf.values().stream().max(Double::compare).orElse(1.0);
             for (String word : tfidf.keySet()) {
                 tfidf.put(word, tfidf.get(word) / max);
             }
-            
+
             return tfidf;
         }
 
@@ -312,60 +312,60 @@ public class TextGraph{ //public类
             Map<String, Double> tfidf = calculateTFIDF(text);
             Map<String, Double> pageRank = new HashMap<>();
             double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
-            
+
             // 使用TF-IDF作为初始值
             for (String node : graph.nodes.keySet()) {
                 double initialValue = tfidf.getOrDefault(node, 0.0);
                 // 平滑处理，避免初始值为0
                 pageRank.put(node, initialValue + 0.0001);
             }
-            
+
             // 归一化初始值
             double sum = pageRank.values().stream().mapToDouble(Double::doubleValue).sum();
             for (String node : pageRank.keySet()) {
                 pageRank.put(node, pageRank.get(node) / sum);
             }
-            
+
             // 迭代计算
             for (int i = 0; i < iterations; i++) {
                 Map<String, Double> newPageRank = new HashMap<>();
                 double danglingSum = 0.0;
-                
+
                 // 计算悬挂节点的贡献
                 for (Node node : graph.getAllNodes()) {
                     if (node.getEdges().isEmpty()) {
                         danglingSum += pageRank.get(node.getName());
                     }
                 }
-                
+
                 for (Node node : graph.getAllNodes()) {
                     double sumPR = 0.0;
-                    
+
                     // 计算来自其他节点的贡献
                     for (Node incoming : graph.getAllNodes()) {
                         if (incoming.hasEdgeTo(node)) {
                             sumPR += pageRank.get(incoming.getName()) / incoming.getOutDegree();
                         }
                     }
-                    
+
                     // 添加悬挂节点的均匀分布贡献
                     sumPR += danglingSum / graph.nodes.size();
-                    
+
                     // 应用阻尼因子和TF-IDF权重
-                    double newValue = (1 - dampingFactor) * tfidf.getOrDefault(node.getName(), 1.0/graph.nodes.size()) 
-                                + dampingFactor * sumPR;
+                    double newValue = (1 - dampingFactor) * tfidf.getOrDefault(node.getName(), 1.0/graph.nodes.size())
+                            + dampingFactor * sumPR;
                     newPageRank.put(node.getName(), newValue);
                 }
-                
+
                 // 归一化
                 double newSum = newPageRank.values().stream().mapToDouble(Double::doubleValue).sum();
                 for (String node : newPageRank.keySet()) {
                     newPageRank.put(node, newPageRank.get(node) / newSum);
                 }
-                
+
                 pageRank = newPageRank;
             }
-            
+
             return pageRank;
         }
 
@@ -373,30 +373,30 @@ public class TextGraph{ //public类
         public List<String> randomWalk() {
             List<String> walk = new ArrayList<>();
             if (nodes.isEmpty()) return walk;
-            
+
             Random random = new Random();
             List<Node> nodeList = new ArrayList<>(getAllNodes());
             Node current = nodeList.get(random.nextInt(nodeList.size()));
             walk.add(current.getName());
-            
+
             Set<String> visitedEdges = new HashSet<>();
-            
+
             while (true) {
                 List<Edge> edges = current.getEdges();
                 if (edges.isEmpty()) break;
-                
+
                 Edge nextEdge = edges.get(random.nextInt(edges.size()));
                 String edgeKey = current.getName() + "->" + nextEdge.getDestination().getName();
-                
+
                 if (visitedEdges.contains(edgeKey)) {
                     break; // 遇到重复边，停止
                 }
-                
+
                 visitedEdges.add(edgeKey);
                 current = nextEdge.getDestination();
                 walk.add(current.getName());
             }
-            
+
             return walk;
         }
 
@@ -406,25 +406,25 @@ public class TextGraph{ //public类
             dot.append("digraph G {\n");
             dot.append("  rankdir=LR;\n");
             dot.append("  node [shape=circle];\n");
-            
+
             // 添加所有节点
             for (Node node : getAllNodes()) {
                 dot.append("  \"").append(node.getName()).append("\";\n");
             }
-            
+
             // 添加所有边
             for (Node node : getAllNodes()) {
                 for (Edge edge : node.getEdges()) {
                     dot.append("  \"")
-                       .append(node.getName())
-                       .append("\" -> \"")
-                       .append(edge.getDestination().getName())
-                       .append("\" [label=\"")
-                       .append(edge.getWeight())
-                       .append("\"];\n");
+                            .append(node.getName())
+                            .append("\" -> \"")
+                            .append(edge.getDestination().getName())
+                            .append("\" [label=\"")
+                            .append(edge.getWeight())
+                            .append("\"];\n");
                 }
             }
-            
+
             dot.append("}\n");
             return dot.toString();
         }
@@ -435,19 +435,19 @@ public class TextGraph{ //public类
                 // 生成临时DOT文件
                 String dotContent = generateDot();
                 Files.write(Paths.get("temp.dot"), dotContent.getBytes());
-                
+
                 // 调用Graphviz生成图片
                 ProcessBuilder pb = new ProcessBuilder(
-                    "dot", "-T"+format, "temp.dot", "-o", outputFile);
+                        "dot", "-T"+format, "temp.dot", "-o", outputFile);
                 Process process = pb.start();
                 int exitCode = process.waitFor();
-                
+
                 if (exitCode != 0) {
                     System.err.println("Graphviz执行失败，请确保已安装Graphviz");
                 } else {
                     System.out.println("图形已保存为: " + outputFile);
                 }
-                
+
                 // 删除临时文件
                 Files.deleteIfExists(Paths.get("temp.dot"));
             } catch (IOException | InterruptedException e) {
@@ -455,25 +455,25 @@ public class TextGraph{ //public类
             }
         }
     }
-    
+
     //节点
     static class Node {
         private String name;    //结点对应的字符串名称
         private List<Edge> edges;   //结点指出的边
         private int distance;   //用于最短路径计算
-        
+
         //构建结点
         public Node(String name) {
             this.name = name;
             this.edges = new ArrayList<>();
             this.distance = Integer.MAX_VALUE;
         }
-        
+
         //获取结点对应的字符串名称
         public String getName() {
             return name;
         }
-        
+
         public void addEdge(Node destination, int weight) {
             //检查是否已存在边
             for (Edge edge : edges) {
@@ -484,82 +484,82 @@ public class TextGraph{ //public类
             }
             edges.add(new Edge(destination, weight));
         }
-        
+
         public List<Edge> getEdges() {
             return edges;
         }
-        
+
         public Set<String> getNeighbors() {
             return edges.stream()
-                .map(e -> e.getDestination().getName())
-                .collect(Collectors.toSet());
+                    .map(e -> e.getDestination().getName())
+                    .collect(Collectors.toSet());
         }
-        
+
         public boolean hasEdgeTo(Node node) {
             return edges.stream().anyMatch(e -> e.getDestination().equals(node));
         }
-        
+
         public int getOutDegree() {
             return edges.size();
         }
-        
+
         public int getDistance() {
             return distance;
         }
-        
+
         public void setDistance(int distance) {
             this.distance = distance;
         }
     }
-    
+
     //有向边
     static class Edge {
         private Node destination;   //有向边的终点
         private int weight;         //有向边对应的权重
-        
+
         //构建有向边
         public Edge(Node destination, int weight) {
             this.destination = destination;
             this.weight = weight;
         }
-        
+
         public Node getDestination() {
             return destination;
         }
-        
+
         public int getWeight() {
             return weight;
         }
-        
+
         public void setWeight(int weight) {
             this.weight = weight;
         }
     }
-    
+
     //最短路径结果类
     static class PathResult {
         private List<String> path;
         private int distance;
-        
+
         public PathResult(List<String> path, int distance) {
             this.path = path;
             this.distance = distance;
         }
-        
+
         public List<String> getPath() {
             return path;
         }
-        
+
         public int getDistance() {
             return distance;
         }
     }
-    
+
     //主程序
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         Graph graph = null;
-        
+
         while (true) {
             System.out.println("************************");
             System.out.println("文本图分析与处理程序");
@@ -575,7 +575,7 @@ public class TextGraph{ //public类
             System.out.println("0. 退出");
             System.out.println("************************");
             System.out.print("\n请选择功能(0-9): ");
-            
+
             int choice;
             try {
                 choice = scanner.nextInt();
@@ -585,13 +585,13 @@ public class TextGraph{ //public类
                 scanner.nextLine(); // 清除无效输入
                 continue;
             }
-            
+
             switch (choice) {
                 case 0:
                     System.out.println("程序退出。");
                     scanner.close();
                     return;
-                    
+
                 case 1:
                     System.out.print("请输入文本文件路径: ");
                     String filePath = scanner.nextLine();
@@ -602,7 +602,7 @@ public class TextGraph{ //public类
                         System.out.println("图构建失败，请检查文件路径。");
                     }
                     break;
-                    
+
                 case 2:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -610,7 +610,7 @@ public class TextGraph{ //public类
                         showDirectedGraph(graph);
                     }
                     break;
-                    
+
                 case 3:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -623,7 +623,7 @@ public class TextGraph{ //public类
                     String result = queryBridgeWords(graph, word1, word2);
                     System.out.println(result);
                     break;
-                    
+
                 case 4:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -634,7 +634,7 @@ public class TextGraph{ //public类
                     String newText = generateNewText(graph, inputText);
                     System.out.println("生成的新文本: " + newText);
                     break;
-                    
+
                 case 5:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -645,7 +645,7 @@ public class TextGraph{ //public类
 
                     System.out.print("请输入目标单词(留空将计算到所有其他节点的最短路径): ");
                     String endWord = scanner.nextLine();
-                        
+
                     if (endWord.isEmpty()) {
                         // 计算单个起点到所有其他节点的最短路径
                         Map<String, PathResult> allPaths = graph.calcShortestPathsFrom(startWord);
@@ -653,21 +653,21 @@ public class TextGraph{ //public类
                             System.out.println("起始单词不存在!");
                             break;
                         }
-                        
+
                         System.out.println("从 '" + startWord + "' 到其他所有单词的最短路径:");
                         allPaths.entrySet().stream()
-                            .sorted(Comparator.comparingInt(e -> e.getValue().getDistance()))
-                            .forEach(entry -> {
-                                PathResult pathResult = entry.getValue();
-                                System.out.printf("到 %s: ", entry.getKey());
-                                if (pathResult.getPath() == null) {
-                                    System.out.println("不可达");
-                                } else {
-                                    System.out.printf("路径: %s, 距离: %d%n",
-                                        String.join(" -> ", pathResult.getPath()),
-                                        pathResult.getDistance());
-                                }
-                            });
+                                .sorted(Comparator.comparingInt(e -> e.getValue().getDistance()))
+                                .forEach(entry -> {
+                                    PathResult pathResult = entry.getValue();
+                                    System.out.printf("到 %s: ", entry.getKey());
+                                    if (pathResult.getPath() == null) {
+                                        System.out.println("不可达");
+                                    } else {
+                                        System.out.printf("路径: %s, 距离: %d%n",
+                                                String.join(" -> ", pathResult.getPath()),
+                                                pathResult.getDistance());
+                                    }
+                                });
                     }
                     else {
                         // 计算单个起点到单个终点的最短路径
@@ -680,7 +680,7 @@ public class TextGraph{ //public类
                         }
                     }
                     break;
-                    
+
                 case 6:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -693,8 +693,8 @@ public class TextGraph{ //public类
                     if (word.isEmpty()) {
                         System.out.println("所有单词的PageRank值:");
                         pageRanks.entrySet().stream()
-                            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                            .forEach(e -> System.out.printf("%s: %.4f%n", e.getKey(), e.getValue()));
+                                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                                .forEach(e -> System.out.printf("%s: %.4f%n", e.getKey(), e.getValue()));
                     } else {
                         word = word.toLowerCase();
                         if (pageRanks.containsKey(word)) {
@@ -704,7 +704,7 @@ public class TextGraph{ //public类
                         }
                     }
                     break;
-                    
+
                 case 7:
                     if (graph == null) {
                         System.out.println("请先构建图!");
@@ -730,7 +730,7 @@ public class TextGraph{ //public类
                     System.out.print("请选择格式(1-png, 2-svg, 3-pdf): ");
                     int formatChoice = scanner.nextInt();
                     scanner.nextLine(); // 消耗换行符
-                    
+
                     String format;
                     switch (formatChoice) {
                         case 1: format = "png"; break;
@@ -754,20 +754,20 @@ public class TextGraph{ //public类
                         String textContent = new String(Files.readAllBytes(Paths.get(textFilePath)));
                         System.out.print("请输入要查询的单词(留空显示全部): ");
                         String wordForImprovedPR = scanner.nextLine();
-                        
+
                         // 使用改进的PageRank计算
                         Map<String, Double> improvedPR = graph.calcImprovedPageRank(graph, 0.85, 50, textContent);
-                        
+
                         if (wordForImprovedPR.isEmpty()) {
                             System.out.println("所有单词的改进PageRank值(TF-IDF加权):");
                             improvedPR.entrySet().stream()
-                                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                                .forEach(e -> System.out.printf("%s: %.4f%n", e.getKey(), e.getValue()));
+                                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                                    .forEach(e -> System.out.printf("%s: %.4f%n", e.getKey(), e.getValue()));
                         } else {
                             wordForImprovedPR = wordForImprovedPR.toLowerCase();
                             if (improvedPR.containsKey(wordForImprovedPR)) {
-                                System.out.printf("%s的改进PageRank值: %.4f%n", 
-                                    wordForImprovedPR, improvedPR.get(wordForImprovedPR));
+                                System.out.printf("%s的改进PageRank值: %.4f%n",
+                                        wordForImprovedPR, improvedPR.get(wordForImprovedPR));
                             } else {
                                 System.out.println("单词不存在于图中!");
                             }
@@ -782,7 +782,7 @@ public class TextGraph{ //public类
             }
         }
     }
-    
+
     //从文件构建图
     public static Graph buildGraphFromFile(String filePath) {
         try {
@@ -793,29 +793,29 @@ public class TextGraph{ //public类
             return null;
         }
     }
-    
+
     //从文本内容构建图
     public static Graph buildGraph(String text) {
         // 预处理文本：替换所有非字母字符为空格，并转为小写
         String processed = text.replaceAll("[^a-zA-Z\\s]", " ")
-                             .replaceAll("\\s+", " ")
-                             .toLowerCase();
-        
+                .replaceAll("\\s+", " ")
+                .toLowerCase();
+
         String[] words = processed.split("\\s+");
         if (words.length == 0) return null;
-        
+
         Graph graph = new Graph(true);
-        
+
         // 构建图的边
         for (int i = 0; i < words.length - 1; i++) {
             String current = words[i];
             String next = words[i+1];
             graph.addEdge(current, next, 1);
         }
-        
+
         return graph;
     }
-    
+
     //显示有向图
     public static void showDirectedGraph(Graph graph) {
         System.out.println("有向图结构:");
@@ -826,56 +826,56 @@ public class TextGraph{ //public类
                 System.out.println("无出边");
                 continue;
             }
-            
+
             List<String> edgeStrings = edges.stream()
-                .map(e -> e.getDestination().getName() + "(" + e.getWeight() + ")") //括号中显示边的权重值
-                .collect(Collectors.toList());
+                    .map(e -> e.getDestination().getName() + "(" + e.getWeight() + ")") //括号中显示边的权重值
+                    .collect(Collectors.toList());
             System.out.println(String.join(", ", edgeStrings));
         }
     }
-    
+
     //查询桥接词
     public static String queryBridgeWords(Graph graph, String word1, String word2) {
         word1 = word1.toLowerCase();
         word2 = word2.toLowerCase();
-        
+
         if (!graph.containsNode(word1) || !graph.containsNode(word2)) {
             return "No " + (!graph.containsNode(word1) ? word1 : word2) + " in the graph!";
         }
-        
+
         List<String> bridgeWords = graph.getBridgeWords(word1, word2);
         if (bridgeWords == null || bridgeWords.isEmpty()) {
             return "No bridge words from " + word1 + " to " + word2 + "!";
         }
-        
+
         if (bridgeWords.size() == 1) {
             return "The bridge word from " + word1 + " to " + word2 + " is: " + bridgeWords.get(0);
         } else {
             String last = bridgeWords.remove(bridgeWords.size() - 1);
-            return "The bridge words from " + word1 + " to " + word2 + " are: " + 
-                   String.join(", ", bridgeWords) + " and " + last;
+            return "The bridge words from " + word1 + " to " + word2 + " are: " +
+                    String.join(", ", bridgeWords) + " and " + last;
         }
     }
-    
+
     //生成新文本
     public static String generateNewText(Graph graph, String inputText) {
         // 预处理输入文本
         String processed = inputText.replaceAll("[^a-zA-Z\\s]", " ")
-                                   .replaceAll("\\s+", " ")
-                                   .toLowerCase();
-        
+                .replaceAll("\\s+", " ")
+                .toLowerCase();
+
         String[] words = processed.split("\\s+");
         if (words.length == 0) return inputText;
-        
+
         List<String> result = new ArrayList<>();
         result.add(words[0]);
-        
+
         Random random = new Random();
-        
+
         for (int i = 0; i < words.length - 1; i++) {
             String current = words[i];
             String next = words[i+1];
-            
+
             // 查找桥接词
             List<String> bridgeWords = graph.getBridgeWords(current, next);
             if (bridgeWords != null && !bridgeWords.isEmpty()) {
@@ -883,10 +883,10 @@ public class TextGraph{ //public类
                 String bridge = bridgeWords.get(random.nextInt(bridgeWords.size()));
                 result.add(bridge);
             }
-            
+
             result.add(next);
         }
-        
+
         // 保留原始文本的大小写和标点
         String[] originalWords = inputText.split("\\s+");
         if (originalWords.length == result.size()) {
@@ -901,10 +901,10 @@ public class TextGraph{ //public类
                 }
             }
         }
-        
+
         return String.join(" ", result);
     }
-    
+
     //保存随机游走结果到文件
     public static void saveRandomWalk(List<String> walk, String fileName) {
         try (PrintWriter writer = new PrintWriter(fileName)) {
