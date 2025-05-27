@@ -836,8 +836,9 @@ public class TextGraph{ //public类
     
     //查询桥接词
     public static String queryBridgeWords(Graph graph, String word1, String word2) {
-        word1 = word1.toLowerCase();
-        word2 = word2.toLowerCase();
+        word1 = word1.replaceAll("[^a-zA-Z0-9]","").toLowerCase();
+        word2 = word2.replaceAll("[^a-zA-Z0-9]","").toLowerCase();
+        
         
         if (!graph.containsNode(word1) || !graph.containsNode(word2)) {
             return "No " + (!graph.containsNode(word1) ? word1 : word2) + " in the graph!";
