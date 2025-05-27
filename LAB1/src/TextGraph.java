@@ -311,7 +311,7 @@ public class TextGraph{ //public类
         public Map<String, Double> calcImprovedPageRank(Graph graph, double dampingFactor, int iterations, String text) {
             Map<String, Double> tfidf = calculateTFIDF(text);
             Map<String, Double> pageRank = new HashMap<>();
-            double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
+            //double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
             
             // 使用TF-IDF作为初始值
             for (String node : graph.nodes.keySet()) {
@@ -836,8 +836,9 @@ public class TextGraph{ //public类
     
     //查询桥接词
     public static String queryBridgeWords(Graph graph, String word1, String word2) {
-        word1 = word1.toLowerCase();
-        word2 = word2.toLowerCase();
+        word1 = word1.replaceAll("[^a-zA-Z0-9]","").toLowerCase();
+        word2 = word2.replaceAll("[^a-zA-Z0-9]","").toLowerCase();
+        
         
         if (!graph.containsNode(word1) || !graph.containsNode(word2)) {
             return "No " + (!graph.containsNode(word1) ? word1 : word2) + " in the graph!";
