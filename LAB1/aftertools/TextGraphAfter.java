@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 /*
  * 从文本文件构建有向图，实现桥接词查询、新文本生成、最短路径计算、PageRank和随机游走
  */
-public class TextGraph{ //public类
+public class TextGraphAfter{ //public类
 
     //有向图
     static class Graph {

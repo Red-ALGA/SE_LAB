@@ -311,7 +311,7 @@ public class TextGraph{ //public类
         public Map<String, Double> calcImprovedPageRank(Graph graph, double dampingFactor, int iterations, String text) {
             Map<String, Double> tfidf = calculateTFIDF(text);
             Map<String, Double> pageRank = new HashMap<>();
-            double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
+            //double sumTFIDF = tfidf.values().stream().mapToDouble(Double::doubleValue).sum();
             
             // 使用TF-IDF作为初始值
             for (String node : graph.nodes.keySet()) {
